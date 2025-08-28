@@ -2,9 +2,7 @@ use app_state::AppState;
 use axum::serve::Serve;
 use axum::{
     http::StatusCode,
-    response::Html,
     response::{IntoResponse, Response},
-    routing::get,
     routing::post,
     Json, Router,
 };
