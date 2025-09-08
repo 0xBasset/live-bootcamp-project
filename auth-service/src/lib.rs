@@ -64,6 +64,7 @@ impl IntoResponse for AuthAPIError {
             AuthAPIError::UnexpectedError => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "Unexpected Error")
             }
+            AuthAPIError::IncorrectCredentials => (StatusCode::UNAUTHORIZED, "Not authorized"),
             AuthAPIError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
         };
         let body = Json(ErrorResponse {
