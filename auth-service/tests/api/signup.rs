@@ -4,8 +4,6 @@ use crate::helpers::{get_random_email, TestApp};
 async fn should_return_422_if_malformed_input() {
     let app = TestApp::new().await;
 
-    let random_email = get_random_email();
-
     let test_cases = [serde_json::json!({
         "password": "password124",
         "requires2FA": true
