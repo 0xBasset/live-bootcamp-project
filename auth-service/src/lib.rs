@@ -83,7 +83,7 @@ impl IntoResponse for AuthAPIError {
             AuthAPIError::IncorrectCredentials | AuthAPIError::InvalidToken => {
                 let msg = match self {
                     AuthAPIError::IncorrectCredentials => "Not authorized",
-                    AuthAPIError::InvalidToken => "Invalid Token",
+                    AuthAPIError::InvalidToken => "Invalid Auth Token",
                     _ => unreachable!(),
                 };
                 (StatusCode::UNAUTHORIZED, msg)
