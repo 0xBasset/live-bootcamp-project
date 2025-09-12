@@ -3,8 +3,10 @@ use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    app_state::{AppState, TwoFAStoreType},
-    domain::{AuthAPIError, Email, LoginAttemptId, Password, TwoFACode, TwoFACodeStore},
+    app_state::{AppState, EmailClientType, TwoFAStoreType},
+    domain::{
+        AuthAPIError, Email, EmailClient, LoginAttemptId, Password, TwoFACode, TwoFACodeStore,
+    },
     services::hashmap_2fa_code_store::HashmapTwoFACodeStore,
     utils::auth::{self, generate_auth_cookie},
 };
@@ -56,7 +58,7 @@ pub async fn login(
     };
 
     match user.require_2fa {
-        true => handle_2fa(&email, &state.two_fa_code_store, jar).await,
+        true => handle_2fa(&email, &state.two_fa_code_store, jar, &state.email_client).await,
         false => handle_no_2fa(jar, &user.email).await,
     }
 }
@@ -65,6 +67,7 @@ async fn handle_2fa(
     email: &Email,
     store: &TwoFAStoreType,
     jar: CookieJar,
+    email_client: &EmailClientType,
 ) -> (
     CookieJar,
     Result<(StatusCode, Json<LoginResponse>), AuthAPIError>,
@@ -75,7 +78,15 @@ async fn handle_2fa(
     if store
         .write()
         .await
-        .add_code(email.clone(), login_attempt_id.clone(), two_fa_code)
+        .add_code(email.clone(), login_attempt_id.clone(), two_fa_code.clone())
+        .await
+        .is_err()
+    {
+        return (jar, Err(AuthAPIError::UnexpectedError));
+    }
+
+    if email_client
+        .send_email(email, "2Fa Code", two_fa_code.as_ref())
         .await
         .is_err()
     {
