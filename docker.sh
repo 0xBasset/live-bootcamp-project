@@ -16,6 +16,7 @@ while IFS= read -r line; do
     # Split the line into key and value
     key=$(echo "$line" | cut -d '=' -f1)
     value=$(echo "$line" | cut -d '=' -f2-)
+    echo "$key=$value"
     # Export the variable
     export "$key=$value"
   fi
