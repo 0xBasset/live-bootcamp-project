@@ -7,8 +7,8 @@ use crate::{
     domain::{
         AuthAPIError, Email, EmailClient, LoginAttemptId, Password, TwoFACode, TwoFACodeStore,
     },
-    services::hashmap_2fa_code_store::HashmapTwoFACodeStore,
-    utils::auth::{self, generate_auth_cookie},
+    services::data_stores::HashmapTwoFACodeStore,
+    utils::auth::generate_auth_cookie,
 };
 
 #[derive(Deserialize)]

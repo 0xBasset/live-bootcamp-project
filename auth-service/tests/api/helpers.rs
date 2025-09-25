@@ -3,8 +3,10 @@ use uuid::Uuid;
 use auth_service::{
     app_state::{AppState, BannedTokenStoreType, TwoFAStoreType},
     services::{
-        hashmap_2fa_code_store::HashmapTwoFACodeStore, hashmap_user_store::HashmapUserStore,
-        hashset_banned_token_store::HashSetBannedTokenStore, mock_email_client::MockEmailClient,
+        data_stores::hashmap_2fa_code_store::HashmapTwoFACodeStore,
+        data_stores::hashmap_user_store::HashmapUserStore,
+        data_stores::hashset_banned_token_store::HashSetBannedTokenStore,
+        mock_email_client::MockEmailClient,
     },
     utils::constants::test,
     Application,
