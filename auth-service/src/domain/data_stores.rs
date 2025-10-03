@@ -1,22 +1,6 @@
-use super::Email;
-use super::Password;
-use super::User;
-
 use rand::Rng;
-use uuid::Uuid;
 
-#[derive(Debug, PartialEq)]
-pub enum UserStoreError {
-    UserAlreadyExists,
-    UserNotFound,
-    InvalidCredentials,
-    UnexpectedError,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum BannedTokenStoreError {
-    UnexpectedError,
-}
+use super::{Email, Password, User};
 
 #[async_trait::async_trait]
 pub trait UserStore {
@@ -26,10 +10,23 @@ pub trait UserStore {
         -> Result<(), UserStoreError>;
 }
 
+#[derive(Debug, PartialEq)]
+pub enum UserStoreError {
+    UserAlreadyExists,
+    UserNotFound,
+    InvalidCredentials,
+    UnexpectedError,
+}
+
 #[async_trait::async_trait]
 pub trait BannedTokenStore {
-    async fn store(&mut self, token: String) -> Result<(), BannedTokenStoreError>;
-    async fn exists(&self, token: String) -> Result<bool, BannedTokenStoreError>;
+    async fn add_token(&mut self, token: String) -> Result<(), BannedTokenStoreError>;
+    async fn contains_token(&self, token: &str) -> Result<bool, BannedTokenStoreError>;
+}
+
+#[derive(Debug)]
+pub enum BannedTokenStoreError {
+    UnexpectedError,
 }
 
 #[async_trait::async_trait]
@@ -58,16 +55,15 @@ pub struct LoginAttemptId(String);
 
 impl LoginAttemptId {
     pub fn parse(id: String) -> Result<Self, String> {
-        match Uuid::parse_str(&id) {
-            Ok(uuid) => Ok(Self(uuid.to_string())),
-            Err(_) => Err("Invalid UUID".to_string()),
-        }
+        let parsed_id =
+            uuid::Uuid::parse_str(&id).map_err(|_| "Invalid login attempt id".to_owned())?;
+        Ok(Self(parsed_id.to_string()))
     }
 }
 
 impl Default for LoginAttemptId {
     fn default() -> Self {
-        LoginAttemptId(Uuid::new_v4().to_string())
+        Self(uuid::Uuid::new_v4().to_string())
     }
 }
 
@@ -82,22 +78,21 @@ pub struct TwoFACode(String);
 
 impl TwoFACode {
     pub fn parse(code: String) -> Result<Self, String> {
-        match code.parse::<u32>() {
-            Ok(num) => {
-                if num < 100000 && num > 999999 {
-                    return Err("Invalid Number of digits".to_string());
-                }
-                return Ok(Self(num.to_string()));
-            }
-            Err(_) => Err("Invalid string".to_string()),
+        let code_as_u32 = code
+            .parse::<u32>()
+            .map_err(|_| "Invalid 2FA code".to_owned())?;
+
+        if (100_000..=999_999).contains(&code_as_u32) {
+            Ok(Self(code))
+        } else {
+            Err("Invalid 2FA code".to_owned())
         }
     }
 }
 
 impl Default for TwoFACode {
     fn default() -> Self {
-        let mut rng = rand::thread_rng();
-        TwoFACode(rng.gen_range(100000..999999).to_string())
+        Self(rand::thread_rng().gen_range(100_000..=999_999).to_string())
     }
 }
 

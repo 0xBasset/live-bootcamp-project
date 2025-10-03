@@ -7,7 +7,10 @@ use argon2::{
 
 use sqlx::PgPool;
 
-use crate::domain::{Email, Password, User, UserStore, UserStoreError};
+use crate::domain::{
+    data_stores::{UserStore, UserStoreError},
+    Email, Password, User,
+};
 
 pub struct PostgresUserStore {
     pool: PgPool,
@@ -22,7 +25,7 @@ impl PostgresUserStore {
 #[async_trait::async_trait]
 impl UserStore for PostgresUserStore {
     async fn add_user(&mut self, user: User) -> Result<(), UserStoreError> {
-        let password_hash = compute_password_hash(user.password.as_ref().to_string())
+        let password_hash = compute_password_hash(user.password.as_ref().to_owned())
             .await
             .map_err(|_| UserStoreError::UnexpectedError)?;
 
@@ -33,7 +36,7 @@ impl UserStore for PostgresUserStore {
             "#,
             user.email.as_ref(),
             &password_hash,
-            user.require_2fa
+            user.requires_2fa
         )
         .execute(&self.pool)
         .await
@@ -59,7 +62,7 @@ impl UserStore for PostgresUserStore {
                 email: Email::parse(row.email).map_err(|_| UserStoreError::UnexpectedError)?,
                 password: Password::parse(row.password_hash)
                     .map_err(|_| UserStoreError::UnexpectedError)?,
-                require_2fa: row.requires_2fa,
+                requires_2fa: row.requires_2fa,
             })
         })
         .ok_or(UserStoreError::UserNotFound)?
@@ -73,8 +76,8 @@ impl UserStore for PostgresUserStore {
         let user = self.get_user(email).await?;
 
         verify_password_hash(
-            user.password.as_ref().to_string(),
-            password.as_ref().to_string(),
+            user.password.as_ref().to_owned(),
+            password.as_ref().to_owned(),
         )
         .await
         .map_err(|_| UserStoreError::InvalidCredentials)

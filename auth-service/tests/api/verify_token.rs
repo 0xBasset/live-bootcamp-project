@@ -1,32 +1,10 @@
 use auth_service::{utils::constants::JWT_COOKIE_NAME, ErrorResponse};
-use axum_extra::extract::cookie;
+use test_helpers::api_test;
 
 use crate::helpers::{get_random_email, TestApp};
 
-#[tokio::test]
-async fn should_return_422_if_malformed_input() {
-    let app = TestApp::new().await;
-
-    let test_cases = [serde_json::json!({
-        "password": "password124",
-    })];
-
-    for test_case in test_cases.iter() {
-        let response = app.post_verify_token(test_case).await;
-
-        assert_eq!(
-            response.status().as_u16(),
-            422,
-            "Failed for input: {:?}",
-            test_case
-        )
-    }
-}
-
-#[tokio::test]
+#[api_test]
 async fn should_return_200_valid_token() {
-    let app = TestApp::new().await;
-
     let random_email = get_random_email();
 
     let signup_body = serde_json::json!({
@@ -46,46 +24,52 @@ async fn should_return_200_valid_token() {
 
     let response = app.post_login(&login_body).await;
 
+    assert_eq!(response.status().as_u16(), 200);
+
     let auth_cookie = response
         .cookies()
         .find(|cookie| cookie.name() == JWT_COOKIE_NAME)
         .expect("No auth cookie found");
 
+    assert!(!auth_cookie.value().is_empty());
+
     let token = auth_cookie.value();
 
-    let verify_body = serde_json::json!({
-        "token": token,
+    let verify_token_body = serde_json::json!({
+        "token": &token,
     });
 
-    let verify_response = app.post_verify_token(&verify_body).await;
+    let response = app.post_verify_token(&verify_token_body).await;
 
-    assert_eq!(verify_response.status().as_u16(), 200, "token not verified");
+    assert_eq!(response.status().as_u16(), 200);
 }
 
-#[tokio::test]
+#[api_test]
 async fn should_return_401_if_invalid_token() {
-    let app = TestApp::new().await;
+    let test_cases = vec!["", "invalid_token"];
 
-    let test_cases = [serde_json::json!({
-        "token": "invalid token",
-    })];
+    for test_case in test_cases {
+        let verify_token_body = serde_json::json!({
+            "token": test_case,
+        });
 
-    for test_case in test_cases.iter() {
-        let response = app.post_verify_token(test_case).await;
+        let response = app.post_verify_token(&verify_token_body).await;
+
+        assert_eq!(response.status().as_u16(), 401);
 
         assert_eq!(
-            response.status().as_u16(),
-            401,
-            "Failed for input: {:?}",
-            test_case
-        )
+            response
+                .json::<ErrorResponse>()
+                .await
+                .expect("Could not deserialize response body to ErrorResponse")
+                .error,
+            "Invalid auth token".to_owned()
+        );
     }
 }
 
-#[tokio::test]
+#[api_test]
 async fn should_return_401_if_banned_token() {
-    let app = TestApp::new().await;
-
     let random_email = get_random_email();
 
     let signup_body = serde_json::json!({
@@ -120,6 +104,8 @@ async fn should_return_401_if_banned_token() {
 
     assert_eq!(response.status().as_u16(), 200);
 
+    // ---------------------------------------------------------
+
     let verify_token_body = serde_json::json!({
         "token": token,
     });
@@ -134,6 +120,21 @@ async fn should_return_401_if_banned_token() {
             .await
             .expect("Could not deserialize response body to ErrorResponse")
             .error,
-        "Invalid Auth Token".to_owned()
+        "Invalid auth token".to_owned()
     );
+}
+
+#[api_test]
+async fn should_return_422_if_malformed_input() {
+    let test_cases = vec![
+        serde_json::json!({
+            "token": true,
+        }),
+        serde_json::json!({}),
+    ];
+
+    for test_case in test_cases {
+        let response = app.post_verify_token(&test_case).await;
+        assert_eq!(response.status().as_u16(), 422);
+    }
 }
