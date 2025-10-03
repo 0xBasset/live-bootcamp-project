@@ -1,16 +1,15 @@
-use crate::helpers::{get_random_email, TestApp};
-
 use auth_service::{
     domain::{Email, LoginAttemptId, TwoFACode},
     routes::TwoFactorAuthResponse,
     utils::constants::JWT_COOKIE_NAME,
     ErrorResponse,
 };
+use test_helpers::api_test;
 
-#[tokio::test]
+use crate::helpers::{get_random_email, TestApp};
+
+#[api_test]
 async fn should_return_200_if_correct_code() {
-    let app = TestApp::new().await;
-
     let random_email = get_random_email();
 
     let signup_body = serde_json::json!({
@@ -70,10 +69,8 @@ async fn should_return_200_if_correct_code() {
     assert!(!auth_cookie.value().is_empty());
 }
 
-#[tokio::test]
+#[api_test]
 async fn should_return_400_if_invalid_input() {
-    let app = TestApp::new().await;
-
     let random_email = get_random_email();
     let login_attempt_id = LoginAttemptId::default().as_ref().to_owned();
     let two_fa_code = TwoFACode::default().as_ref().to_owned();
@@ -119,15 +116,13 @@ async fn should_return_400_if_invalid_input() {
                 .await
                 .expect("Could not deserialize response body to ErrorResponse")
                 .error,
-            "Invalid Credentials".to_owned()
+            "Invalid credentials".to_owned()
         );
     }
 }
 
-#[tokio::test]
+#[api_test]
 async fn should_return_401_if_incorrect_credentials() {
-    let app = TestApp::new().await;
-
     let random_email = get_random_email();
 
     let signup_body = serde_json::json!({
@@ -217,15 +212,13 @@ async fn should_return_401_if_incorrect_credentials() {
                 .await
                 .expect("Could not deserialize response body to ErrorResponse")
                 .error,
-            "Not authorized".to_owned()
+            "Incorrect credentials".to_owned()
         );
     }
 }
 
-#[tokio::test]
+#[api_test]
 async fn should_return_401_if_old_code() {
-    let app = TestApp::new().await;
-
     let random_email = get_random_email();
 
     let signup_body = serde_json::json!({
@@ -288,10 +281,8 @@ async fn should_return_401_if_old_code() {
     assert_eq!(response.status().as_u16(), 401);
 }
 
-#[tokio::test]
+#[api_test]
 async fn should_return_401_if_same_code_twice() {
-    let app = TestApp::new().await;
-
     let random_email = get_random_email();
 
     let signup_body = serde_json::json!({
@@ -355,10 +346,8 @@ async fn should_return_401_if_same_code_twice() {
     assert_eq!(response.status().as_u16(), 401);
 }
 
-#[tokio::test]
+#[api_test]
 async fn should_return_422_if_malformed_input() {
-    let app = TestApp::new().await;
-
     let random_email = get_random_email();
     let login_attempt_id = LoginAttemptId::default().as_ref().to_owned();
 

@@ -1,5 +1,3 @@
-use core::str;
-
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 
@@ -12,12 +10,13 @@ pub async fn signup(
     State(state): State<AppState>,
     Json(request): Json<SignupRequest>,
 ) -> Result<impl IntoResponse, AuthAPIError> {
-    // Note: Why is ? required here if map_err lets the ok untouched?
-    let email = Email::parse(request.email).map_err(|_| AuthAPIError::InvalidCredentials)?;
+    let email =
+        Email::parse(request.email.clone()).map_err(|_| AuthAPIError::InvalidCredentials)?;
     let password =
-        Password::parse(request.password).map_err(|_| AuthAPIError::InvalidCredentials)?;
+        Password::parse(request.password.clone()).map_err(|_| AuthAPIError::InvalidCredentials)?;
 
-    let user = User::new(email, password, request.require_2fa);
+    let user = User::new(email, password, request.requires_2fa);
+
     let mut user_store = state.user_store.write().await;
 
     if user_store.get_user(&user.email).await.is_ok() {
@@ -26,9 +25,13 @@ pub async fn signup(
 
     if user_store.add_user(user).await.is_err() {
         return Err(AuthAPIError::UnexpectedError);
-    };
+    }
 
-    Ok(StatusCode::CREATED)
+    let response = Json(SignupResponse {
+        message: "User created successfully!".to_string(),
+    });
+
+    Ok((StatusCode::CREATED, response))
 }
 
 #[derive(Deserialize)]
@@ -36,10 +39,10 @@ pub struct SignupRequest {
     pub email: String,
     pub password: String,
     #[serde(rename = "requires2FA")]
-    pub require_2fa: bool,
+    pub requires_2fa: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignupResponse {
     pub message: String,
 }
