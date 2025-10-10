@@ -1,3 +1,4 @@
+use color_eyre;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -18,7 +19,8 @@ use auth_service::{
 
 #[tokio::main]
 async fn main() {
-    init_tracing();
+    color_eyre::install().expect("Issue installing colo eyre");
+    init_tracing().expect("Failed to initialize tracing");
 
     let pg_pool = configure_postgresql().await;
     let redis_connection = Arc::new(RwLock::new(configure_redis()));
